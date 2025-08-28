@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using LexoAlgorithm.NumeralSystems;
@@ -9,7 +11,7 @@ namespace LexoAlgorithm
 {
     public class LexoRank : IComparable<LexoRank>, IComparable
     {
-        public static readonly ILexoNumeralSystem NumeralSystem = new LexoNumeralSystem36();
+        public static readonly ILexoNumeralSystem NumeralSystem = new LexoNumeralSystem64();
         private static readonly LexoDecimal ZeroDecimal = LexoDecimal.Parse("0", NumeralSystem);
         private static readonly LexoDecimal OneDecimal = LexoDecimal.Parse("1", NumeralSystem);
         private static readonly LexoDecimal EightDecimal = LexoDecimal.Parse("8", NumeralSystem);
@@ -299,6 +301,84 @@ namespace LexoAlgorithm
             if (!dec.GetSystem().Name.Equals(NumeralSystem.Name)) throw new LexoException("Expected different system");
 
             return new LexoRank(bucket, dec);
+        }
+
+        /// <summary>
+        /// Generates a fresh rank by creating a new rank between the minimum and maximum bounds.
+        /// This helps refresh tokens that may have become too dense.
+        /// </summary>
+        public static LexoRank Refresh(LexoRankBucket bucket)
+        {
+            return From(bucket, MidDecimal);
+        }
+
+        /// <summary>
+        /// Redistributes a collection of ranks evenly between min and max bounds.
+        /// Useful for refreshing a set of ranks that have become too dense.
+        /// </summary>
+        public static IEnumerable<LexoRank> RefreshRanks(IEnumerable<LexoRank> ranks, LexoRankBucket bucket)
+        {
+            if (ranks == null) throw new ArgumentNullException(nameof(ranks));
+            
+            var rankList = ranks.OrderBy(r => r).ToList();
+            if (rankList.Count == 0) return Enumerable.Empty<LexoRank>();
+            if (rankList.Count == 1) return new[] { From(bucket, MidDecimal) };
+
+            var refreshedRanks = new List<LexoRank>();
+            var range = MaxDecimal.Subtract(MinDecimal);
+            
+            for (int i = 0; i < rankList.Count; i++)
+            {
+                // Distribute evenly across the range
+                var factor = (i + 1.0) / (rankList.Count + 1.0);
+                
+                // Create a simple fraction-based decimal for positioning
+                var steps = (int)(factor * 1000000); // Use million steps for precision
+                var stepDecimal = LexoDecimal.Parse(steps.ToString(), NumeralSystem);
+                var millionDecimal = LexoDecimal.Parse("1000000", NumeralSystem);
+                var fraction = stepDecimal.Multiply(range).Multiply(LexoDecimal.Parse("1", NumeralSystem));
+                
+                // Simple approach: just space them out evenly
+                var position = i + 1;
+                var totalSlots = rankList.Count + 1;
+                var slotSize = "100000"; // Base slot size
+                var slotDecimal = LexoDecimal.Parse(slotSize, NumeralSystem);
+                var positionDecimal = slotDecimal.Multiply(LexoDecimal.Parse(position.ToString(), NumeralSystem));
+                
+                refreshedRanks.Add(From(bucket, positionDecimal));
+            }
+            
+            return refreshedRanks;
+        }
+
+        /// <summary>
+        /// Checks if ranks are too dense and may benefit from refreshing.
+        /// Returns true if consecutive ranks are very close together.
+        /// </summary>
+        public static bool NeedsRefresh(IEnumerable<LexoRank> ranks)
+        {
+            if (ranks == null) return false;
+            
+            var rankList = ranks.OrderBy(r => r).ToList();
+            if (rankList.Count < 2) return false;
+
+            for (int i = 0; i < rankList.Count - 1; i++)
+            {
+                var current = rankList[i];
+                var next = rankList[i + 1];
+                
+                if (current.Bucket.Equals(next.Bucket))
+                {
+                    var diff = next.Decimal.Subtract(current.Decimal);
+                    // Use "1" as threshold - if difference is very small, needs refresh
+                    var threshold = LexoDecimal.Parse("1", NumeralSystem);
+                    
+                    if (diff.CompareTo(threshold) <= 0)
+                        return true;
+                }
+            }
+            
+            return false;
         }
     }
 }

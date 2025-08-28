@@ -10,14 +10,14 @@ namespace LexoAlgorithm.Tests
     public class LexoRankTests
     {
         [Theory]
-        [InlineData(0, 1, "0|0i0000:")]
-        [InlineData(1, 0, "0|0i0000:")]
-        [InlineData(3, 5, "0|10000o:")]
-        [InlineData(5, 3, "0|10000o:")]
-        [InlineData(15, 30, "0|10004s:")]
-        [InlineData(31, 32, "0|10006s:")]
-        [InlineData(100, 200, "0|1000x4:")]
-        [InlineData(200, 100, "0|1000x4:")]
+        [InlineData(0, 1, "0|0W0000:")]
+        [InlineData(1, 0, "0|0W0000:")]
+        [InlineData(3, 5, "0|10000O:")]
+        [InlineData(5, 3, "0|10000O:")]
+        [InlineData(15, 30, "0|10002g:")]
+        [InlineData(31, 32, "0|10003o:")]
+        [InlineData(100, 200, "0|1000Ic:")]
+        [InlineData(200, 100, "0|1000Ic:")]
         public void Should_Between_MoveTo(int prevStep, int nextStep, string expected)
         {
             // Arrange
@@ -210,6 +210,79 @@ namespace LexoAlgorithm.Tests
         {
             var lexorank = LexoRank.Min();
             lexorank.IsMin().ShouldBeTrue();
+        }
+
+        [Fact]
+        public void Should_Refresh_Single_Rank()
+        {
+            var refreshed = LexoRank.Refresh(LexoRankBucket.Min());
+            refreshed.Bucket.ShouldBe(LexoRankBucket.Min());
+            refreshed.Format().ShouldContain("|");
+        }
+
+        [Fact]
+        public void Should_RefreshRanks_With_Multiple_Ranks()
+        {
+            var ranks = new List<LexoRank>();
+            var current = LexoRank.Min();
+            for (int i = 0; i < 3; i++)
+            {
+                current = current.GenNext();
+                ranks.Add(current);
+            }
+
+            var refreshed = LexoRank.RefreshRanks(ranks, LexoRankBucket.Min()).ToList();
+            refreshed.Count.ShouldBe(3);
+            
+            // Verify they are properly ordered
+            for (int i = 0; i < refreshed.Count - 1; i++)
+            {
+                refreshed[i].CompareTo(refreshed[i + 1]).ShouldBeLessThan(0);
+            }
+        }
+
+        [Fact]
+        public void Should_RefreshRanks_With_Empty_List()
+        {
+            var refreshed = LexoRank.RefreshRanks(new List<LexoRank>(), LexoRankBucket.Min());
+            refreshed.ShouldBeEmpty();
+        }
+
+        [Fact]
+        public void Should_RefreshRanks_With_Single_Rank()
+        {
+            var ranks = new List<LexoRank> { LexoRank.Min().GenNext() };
+            var refreshed = LexoRank.RefreshRanks(ranks, LexoRankBucket.Min()).ToList();
+            refreshed.Count.ShouldBe(1);
+        }
+
+        [Fact]
+        public void Should_NeedsRefresh_Return_False_For_Sparse_Ranks()
+        {
+            var ranks = new List<LexoRank>();
+            var current = LexoRank.Min();
+            for (int i = 0; i < 3; i++)
+            {
+                current = current.GenNext();
+                ranks.Add(current);
+            }
+
+            var needsRefresh = LexoRank.NeedsRefresh(ranks);
+            needsRefresh.ShouldBeFalse();
+        }
+
+        [Fact]
+        public void Should_NeedsRefresh_Return_False_For_Empty_List()
+        {
+            var needsRefresh = LexoRank.NeedsRefresh(new List<LexoRank>());
+            needsRefresh.ShouldBeFalse();
+        }
+
+        [Fact]
+        public void Should_Use_Base64_System()
+        {
+            LexoRank.NumeralSystem.Name.ShouldBe("Base64");
+            LexoRank.NumeralSystem.GetBase().ShouldBe(64);
         }
     }
 }

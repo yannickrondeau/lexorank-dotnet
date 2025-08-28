@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using LexoAlgorithm;
 
 class Program {
     static void Main() {
+        Console.WriteLine("=== Base64 LexoRank with More Characters ===");
         var min = LexoRank.Min();
         var max = LexoRank.Max();
         var middle = LexoRank.Middle();
@@ -21,5 +24,38 @@ class Program {
         
         Console.WriteLine($"Current numeral system: {LexoRank.NumeralSystem.Name}");
         Console.WriteLine($"Current base: {LexoRank.NumeralSystem.GetBase()}");
+        
+        Console.WriteLine("\n=== Testing Refresh Functionality ===");
+        
+        // Test refresh function
+        var refreshedRank = LexoRank.Refresh(LexoRankBucket.Min());
+        Console.WriteLine($"Refreshed rank: {refreshedRank.Format()}");
+        
+        // Test with multiple ranks
+        var ranks = new List<LexoRank>();
+        var current = LexoRank.Min();
+        for (int i = 0; i < 5; i++)
+        {
+            current = current.GenNext();
+            ranks.Add(current);
+        }
+        
+        Console.WriteLine("\nOriginal ranks:");
+        foreach (var rank in ranks)
+        {
+            Console.WriteLine($"  {rank.Format()}");
+        }
+        
+        // Check if they need refresh
+        bool needsRefresh = LexoRank.NeedsRefresh(ranks);
+        Console.WriteLine($"Needs refresh: {needsRefresh}");
+        
+        // Refresh the ranks
+        var refreshedRanks = LexoRank.RefreshRanks(ranks, LexoRankBucket.Min()).ToList();
+        Console.WriteLine("\nRefreshed ranks:");
+        foreach (var rank in refreshedRanks)
+        {
+            Console.WriteLine($"  {rank.Format()}");
+        }
     }
 }
